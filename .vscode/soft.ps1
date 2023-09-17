@@ -87,7 +87,7 @@ function ShowUserMenu {
 function askforuser{
     $Username = read-host "enter username to process"
     $check=checkExistoffice365 -userinput $Username #check if user exists in office 365
-    if ($check -eq $null) {
+    if ($null -eq $check ) {
     CheckexistsGoogle -userInput $Username
     Write-Host "The variable is null."
     Write-Host "username" $username
@@ -354,7 +354,7 @@ function cheeckgooglerouting {
         [string] $userInput
     )
 # Define group and user
-$groupEmail = "reenviooffice"
+#$groupEmail = "reenviooffice"
 $userEmail = $userInput
 
 # Call GAM to retrieve members of the group and capture the output
