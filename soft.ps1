@@ -48,7 +48,7 @@ function ShowUserMenu {
             '1' {clear-host
                  do {$username=askforuser }
                  while ($null -eq $username) {} 
-                 ShowUserSingleMenu -userInput $username #access third variable of the array and show single user menu
+                 ShowUserSingleMenu -UserObject $username #access third variable of the array and show single user menu
                 } 
             '2' {}
             'B' { return }
@@ -61,18 +61,20 @@ function ShowUserMenu {
     } while ($choice -ne 'B')
 }
 function ShowUserSingleMenu {
-
-   
-    param (
-        [string]$userInput
+        param (
+        [PSCustomObject]$UserObject
     )
-    $choice = $null
+         # Accessing the properties of the object
+     $officeUser = $UserObject.Office365User
+     $googleUser = $UserObject.GoogleWorkspaceUser
+  
+     $choice = $null
     do {
        #check_eol #check if connected to exchange online
        #show_gam #check if gam is working
         Write-Host "current User : "-NoNewline
-        Write-Host $userinput -ForegroundColor Green
-        UserMigrationStatus -userinput $userInput         
+        Write-Host $googleUser -ForegroundColor Green
+        UserMigrationStatus -UserObject $UserObject      
         Write-Host ""
         Write-Host "User menu"
         Write-Host "1. Mailbox Refresh"
@@ -83,6 +85,7 @@ function ShowUserSingleMenu {
         Write-Host "6. remove retention policy"
         Write-Host "7. Archive management"
         Write-host "9. Change Username"
+        write-host "P. Purge menu"
         Write-Host "B. Back to Main Menu"
         Write-Host "Q. Quit"
 
@@ -90,29 +93,26 @@ function ShowUserSingleMenu {
 
         switch ($choice) {
             '1' { Write-Host "Refreshing mailbox"
-                Refreshmailbox -userinput  $userinput
+                Refreshmailbox -userinput  $officeUser
                  }
 
             '2' { Write-Host "Routing to outlook "
-             Routingtooutlook -userinput  $userinput
+             Routingtooutlook -userinput  $officeUser
                  }
 
             '3' { Write-Host "removing routing to oulook"
-            RemoveRoutingtooutlook -userinput  $userinput
+            RemoveRoutingtooutlook -userinput  $officeUser
                  }
-            '4' { Write-Host "test user"
-            write-host "checking if $userinput exists"
-            pause 5
-            checkExistoffice365  -userinput  $userinput
+            '4' { 
                  }
                  '5' { Write-Host "Status management"
-                 cheeckgooglerouting -userInput $userInput
+                 cheeckgooglerouting -userInput $googleUser
                       }
                  '6' { Write-Host "remove retention policy"
-                      remove-retentionpolicy -userInput $userInput
+                      remove-retentionpolicy -userInput $officeUser
                              }
                 '7' { Write-Host "Archive management"
-                   enableDisableArchive -userinput  $userinput
+                   enableDisableArchive -UserObject  $UserObject
                                   }
             '9' {Clear-Host
                 do
@@ -122,8 +122,9 @@ function ShowUserSingleMenu {
                    while ($null -eq $username) {
                       
                 } 
-                ShowUserSingleMenu -userInput $username #access third variable of the array and show single user menu
+                ShowUserSingleMenu -userObject $username #access third variable of the array and show single user menu
                  }
+            'P' { Menu_purge_mailbox -UserObject $UserObject }
             'B' { return }
             'Q' { Exit }
             default { Write-Host "Invalid choice, please try again." }
@@ -140,6 +141,46 @@ function remove-retentionpolicy {
     )
     Set-Mailbox -Identity $userInput -RetentionPolicy $null
 } 
+
+function Menu_Purge_mailbox {
+    param (
+        [string]$UserObject
+    )
+    $officeUser = $UserObject.Office365User
+    $choice = $null
+    Write-Host "current User : "-NoNewline
+    Write-Host $userInput -ForegroundColor Green
+    UserMigrationStatus -UserObject $UserObject      
+    Write-Host ""
+    Write-Host "PurgueUser menu"
+    Write-Host "1. Mailbox Refresh"
+    Write-Host "2. Show retention policy"
+    Write-Host "3. change retention policy to purge mailbox"
+    Write-Host "4. create compliance purge job"
+    Write-Host "5. start purge Job"
+    write-Host "B. Back to Main Menu"
+    Write-Host "Q. Quit"
+    $choice = Read-Host "Please select an option"
+
+    switch ($choice) {
+        '1' { Write-Host "Refreshing mailbox"
+            Refreshmailbox -userinput  $UserObject}
+        '2' { Write-Host "Show retention policy"
+            showretentionpolicy -userinput  $UserObject}
+        '3' { Write-Host "change retention policy to purge mailbox"
+        Set-Mailbox $officeUser -RetentionPolicy "Purgado buzon" -RetainDeletedItemsFor 0 -SingleItemRecoveryEnabled $false
+                    }
+        '4' { Write-Host "create compliance purge job"
+                }
+        '5' { Write-Host "start purge Job"
+                }
+        'B' { return }
+        'Q' { Exit }
+        default { Write-Host "Invalid choice, please try again." }
+            
+}
+}
+
 Function check_eol{
     if (Get-Command Get-Mailbox -ErrorAction SilentlyContinue) {
         Write-Host "Status: " -NoNewline
@@ -295,42 +336,45 @@ function UserMigrationStatus{
 
 #>
     param (
-        [string] $userInput
+        [PSCustomObject]$UserObject
     )
    
+    $officeUser = $UserObject.Office365User
+    $googleUser = $UserObject.GoogleWorkspaceUser
+
     # show if archive are enabled or not (active or none)
-    $Archivestatus = get-mailbox $userInput | Select-Object -ExpandProperty ArchiveStatus 
+    $Archivestatus = get-mailbox $officeUser | Select-Object -ExpandProperty ArchiveStatus 
 
     # shows exchange online total size
-$mailboxtotalSize = (Get-MailboxStatistics $userInput | Select-Object -ExpandProperty TotalItemSize)
+$mailboxtotalSize = (Get-MailboxStatistics $officeUser | Select-Object -ExpandProperty TotalItemSize)
 write-host "Exchange online principal mailbox:" $mailboxtotalSize
 
 # shows exchange online archive size if exist, show Archive not enabled if not exist
 if ($Archivestatus -eq "Active") {
-    $archivetotalSize = (Get-MailboxStatistics $userInput -Archive| Select-Object -ExpandProperty TotalItemSize)
+    $archivetotalSize = (Get-MailboxStatistics $officeUser -Archive| Select-Object -ExpandProperty TotalItemSize)
     write-host "Exchange online Archive mailbox::" $archivetotalSize
 } elseif ($Archivestatus -eq "none") {
     write-host "Archive not enabled" -Foreground Yellow
 }
 
 # shows google workspace size
-$usedGbuser=processreport -userInput $userInput
+$usedGbuser=processreport -userInput $googleUser
 write-host "Google workspace mailbox:"$usedGbuser "GB"
 
 # shows retention policy
-$retentionPolicy = (Get-Mailbox -Identity $userInput).RetentionPolicy
+$retentionPolicy = (Get-Mailbox -Identity $officeUser).RetentionPolicy
 if ($null -eq $retentionPolicy) {
-    Write-Host "No retention policy is set for $userInput." -foreground green
+    Write-Host "No retention policy is set for $officeUser." -foreground green
 } else {
-    Write-Host "Retention policy for $userInput is: $retentionPolicy" -foreground red
+    Write-Host "Retention policy for $officeUser is: $retentionPolicy" -foreground red
 }
 #$prueba = showarchive -userInput $userInput
     # chequear archivo
   #  showarchive -userInput $userInput 
 
     # chequear grupo Reenvio 
-    cheeckgooglerouting -userInput $userInput
-    check365routing -userInput $userInput
+    cheeckgooglerouting -userInput $googleUser
+    check365routing -userInput $officeUser
    
 }
    function gmailusedSpace {
@@ -495,15 +539,19 @@ $convertedData = $data | ForEach-Object {
      return $usedGbuser  
 }
 function enableDisableArchive {
-    param (
-        [string]$userInput
-    )
+      
+        param (
+            [PSCustomObject]$UserObject
+        )
+       
+        $officeUser = $UserObject.Office365User
+        $googleUser = $UserObject.GoogleWorkspaceUser     
 
 
     $choice = $null
     do {
-        UserMigrationStatus -userinput $userInput
-        $status=checkarchive -userInput $userInput
+        UserMigrationStatus -UserObject $userObject
+        $status=checkarchive -userInput $officeUser
         #UserMigrationStatus
         write-host "The current status of the current mailbox archive are : " -NoNewline 
         Write-Host $status -ForegroundColor Green
@@ -517,10 +565,10 @@ function enableDisableArchive {
 
         switch ($choice) {
             'E' { Write-Host "Enabling Archive"
-                enable-mailbox $userinput -archive 
+                enable-mailbox $officeUser -archive 
                  }	
             'D' { Write-Host "Disabling Archive"
-                disable-mailbox $userinput -archive 
+                disable-mailbox $officeUser -archive 
         }
 
             'B' { clear-host
@@ -537,37 +585,45 @@ function enableDisableArchive {
 
 
 }
-function askforuser{
-    param (
-        [string]$userInput
-            )
-    $Username = read-host "enter username to process" #read user and catch
-    $check_o365=checkExistoffice365 -userinput $Username   #check if user exists in office 365
-    $check_gam=CheckexistsGoogle -userInput $Username    #check if user exists in google workspace
-    #PauseForUser
-    if ($null -eq $check_o365 -and $null -eq $check_gam) {
-        Write-Host "The user $username doesn exist in any of the two platforms." -foreground red #he user does not exist in any of the two platforms 
-        return $null
-#   if not null
-    } elseif ($null -eq $check_o365 -and $null -ne $check_gam) {
-        write-host "The user $username does not exist in office 365 but exists in google workspace."  -foreground Yellow #the user does not exist in office 365 but exists in google workspace
-        write-host "look the user field and try again"
-        $output = & gam info user $Username
-        write-host $output
-        return $null
-        pauseforuser
-    } elseif ($null -ne $check_o365 -and $null -eq $check_gam) {
-        write-host "The user $username does not exist in google workspace but exists in office 365." -foreground red #the user does not exist in google workspace but exists in office 365
-        write-host "try with another user"
-        pauseforuser
-        return $null
-    } elseif ($null -ne $check_o365 -and $null -ne $check_gam) {
-        write-host "The user $username exists in both platforms."#the user exists in both platforms -foreground green
-        return $username
-        }
-}
-# Call the main menu
+function askforuser {
+    do {
+        # Prompt for Office 365 username
+        $O365Username = Read-Host "Enter Office 365 username to process"
+        $check_o365 = checkExistoffice365 -userinput $O365Username
 
+        # If the user doesn't exist in Office 365, inform and ask again
+        if ($null -eq $check_o365) {
+            Write-Host "The user $O365Username does not exist in Office 365." -ForegroundColor red
+            continue
+        } else {
+            # Since Office 365 username is valid, ask if you want to change the Google Workspace username
+            $decision = Read-Host "Office 365 username is valid. Do you want to provide a different Google Workspace username? (Y/N)"
+            if ($decision -eq 'Y' -or $decision -eq 'y') {
+                while ($true) {
+                    $GWorkspaceUsername = Read-Host "Enter Google Workspace username to process"
+                    $check_gam = CheckexistsGoogle -userInput $GWorkspaceUsername
+
+                    # If the user exists in Google Workspace, break out of the loop
+                    if ($null -ne $check_gam) {
+                        Write-Host "The user $GWorkspaceUsername exists in Google Workspace." -ForegroundColor green
+                        break
+                    } else {
+                        Write-Host "The user $GWorkspaceUsername does not exist in Google Workspace." -ForegroundColor red
+                    }
+                }
+            } else {
+                $GWorkspaceUsername = $O365Username
+            }
+        }
+
+    } while ($null -eq $check_o365)
+
+    # Return an object with both valid usernames
+    return @{
+        Office365User = $O365Username
+        GoogleWorkspaceUser = $GWorkspaceUsername
+    }
+}
 #processreportq
 Import-Module 'C:\Program Files (x86)\BitTitan\BitTitan PowerShell\BitTitanPowerShell.dll'
 ShowMainMenu
