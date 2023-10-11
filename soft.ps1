@@ -292,6 +292,7 @@ if ($members | Where-Object { $_.alias -eq $userInput }) {
 }
 
 function RemoveRoutingtooutlook 
+#github
 {
     param (
         [string]$userInput
