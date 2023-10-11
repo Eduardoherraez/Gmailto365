@@ -85,6 +85,7 @@ function ShowUserSingleMenu {
         Write-Host "6. remove retention policy"
         Write-Host "7. Archive management"
         Write-host "9. Change Username"
+        Write-host "A. Create Alias"
         write-host "P. Purge menu"
         Write-Host "B. Back to Main Menu"
         Write-Host "Q. Quit"
@@ -124,6 +125,7 @@ function ShowUserSingleMenu {
                 } 
                 ShowUserSingleMenu -userObject $username #access third variable of the array and show single user menu
                  }
+            'A' { Menu_alias -UserObject $UserObject }
             'P' { Menu_purge_mailbox -UserObject $UserObject }
             'B' { return }
             'Q' { Exit }
@@ -134,6 +136,99 @@ function ShowUserSingleMenu {
 
     } while ($choice -ne 'B')
 }
+
+function Menu_alias {
+    param (
+        [PSCustomObject]$UserObject
+    )
+         # Accessing the properties of the object
+     $officeUser = $UserObject.Office365User
+     $googleUser = $UserObject.GoogleWorkspaceUser
+  
+    $choice = $null
+    do {
+        Write-Host "current User : "-NoNewline
+        Write-Host $googleUser -ForegroundColor Green
+        UserMigrationStatus -UserObject $UserObject      
+        Write-Host ""
+        Write-Host "Alias menu"
+        Write-Host "1. Create Alias in Office"
+        Write-Host "2. Delete Alias From google"
+        Write-Host "B. Back to Main Menu"
+        Write-Host "Q. Quit"
+        $choice = Read-Host "Please select an option"
+
+        switch ($choice) {
+            '1' { Write-Host "Creating Alias"
+                create-alias -UserObject  $UserObject}
+            '2' { Write-Host "Deleting Alias"
+                delete-alias -UserObject  $UserObject}
+            'B' { return }
+            'Q' { Exit }
+            default { Write-Host "Invalid choice, please try again." }
+        }
+
+    } while ($choice -ne 'B')
+}
+
+   # function to create alias
+
+
+
+ function create-alias {
+    param (
+        [PSCustomObject]$UserObject
+    )
+    
+    # Pedir al usuario que ingrese una lista de alias separados por comas
+$ListaAlias = Read-Host "Ingrese una lista de alias separados por comas (por ejemplo, alias1,alias2,alias3)"
+
+# Dividir la lista en elementos individuales
+$ListaAliasSeparada = $ListaAlias -split ','
+
+# Iterar sobre cada alias y realizar operaciones
+foreach ($Alias in $ListaAliasSeparada) {
+    $Direccion = $Alias
+    $DireccionCompleta= "smtp:"+$Direccion
+    $UsuarioOffice = $userObject.Office365User
+    $UsuarioGoogle = $userObject.GoogleWorkspaceUser
+
+    $aliasacambiar = "old-" + $Direccion
+    Write-Host "guardalo $guardalo"
+    Write-Host $Direccion
+    Write-Host $aliasacambiar
+    set-ADUser $UsuarioOffice -Add @{ProxyAddresses=$DireccionCompleta}
+    Get-ADUser $UsuarioOffice -Properties proxyaddresses      
+ }  
+}
+
+function create-alias-old {
+    param (
+        [PSCustomObject]$UserObject
+    )
+    
+    
+       
+    $Direccion= Read-Host "Alias a agregar" 
+    $UsuarioOffice= $userObject.Office365User
+    $UsuarioGoogle= $userObject.GoogleWorkspaceUser
+    
+    $aliasacambiar= "old-"+$Direccion
+    Write-Host guardalo $guardalo
+    Write-Host "usuario"$usuario
+    Write-Host $DireccionCompleta
+    Write-Host $aliasacambiar
+    set-ADUser $UsuarioOffice -Add @{ProxyAddresses=$DireccionCompleta}
+    Get-ADUser $UsuarioOffice -Properties proxyaddresses      
+    #gam create alias $aliasacambiar user $usuario
+    #gam delete alias $Direccion user $usuario
+  
+    #3 seconds pause
+    Start-Sleep -s 3
+
+    #Clear-Host
+}
+
 
 function remove-retentionpolicy {
     param (
